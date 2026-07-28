@@ -88,3 +88,11 @@ keep the exact same miniature diorama world, materials and lighting as the start
 - Seedance는 start_image를 약간 리프레이밍함 → 페이지 초기 포스터를 d1_first.png로 사용
 - 최종 크레딧: 500.81 → 282.31 (총 218.5 사용, 승인 범위 215~270 내)
 - 로컬 서버: python -m http.server 8765 (프로젝트 루트) → http://localhost:8765/site/
+
+## 배포 (2026-07-29)
+
+- 호스팅: Cloudflare Pages, 프로젝트명 `letscoding`, 프로덕션 브랜치 main
+- URL: https://letscoding.pages.dev (전 자산 200 응답 검증 완료)
+- 배포 폴더: dist/ (site/index.html의 ../assets/ 경로를 assets/로 치환 + 필요 자산만 복사, 39MB 20파일)
+- 재배포 방법: dist/ 갱신 후 `npx wrangler pages deploy dist --project-name letscoding --branch main`
+- wrangler OAuth 로그인 계정: turboguy36@gmail.com
