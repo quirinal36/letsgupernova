@@ -97,3 +97,22 @@ keep the exact same miniature diorama world, materials and lighting as the start
 - 배포 폴더: dist/ (site/index.html의 ../assets/ 경로를 assets/로 치환 + 필요 자산만 복사, 39MB 20파일)
 - 재배포 방법: dist/ 갱신 후 `npx wrangler pages deploy dist --project-name letscoding --branch main`
 - wrangler OAuth 로그인 계정: turboguy36@gmail.com
+
+## 배포 (2026-08-20 현재 — Vercel로 이전)
+
+- 호스팅: **Vercel**, 팀 `letscodings-projects`, 프로젝트 `letsgupernova`
+- URL: https://letsgupernova.vercel.app
+- GitHub `quirinal36/letsgupernova` 의 **main 브랜치에 push하면 자동 배포**된다
+- **Root Directory = `dist/`** (실측: `/assets/videos/...` 200, `/PRD.md` 404)
+  → 배포에 반영하려면 반드시 `dist/` 안의 파일을 갱신해야 한다. `site/`만 고치면 배포되지 않는다
+- HTML의 `../assets/...` 경로는 루트에서 `..`가 잘려 `/assets/...`로 해석되므로 그대로 동작한다
+- Cloudflare Pages(위 항목)는 이전 배포처이며 현재는 Vercel이 기준이다
+
+### 페이지
+
+| 경로 | 파일 | 내용 |
+|---|---|---|
+| `/` | `dist/index.html` | 스크롤 시네마틱 여정 (AI Novices → Champions) |
+| `/usecases.html` | `dist/usecases.html` | 발표 슬라이드 "1인 소상공인이 AI를 사용하는 방법" 11장 |
+
+여정 페이지 마지막 장면의 **활용사례 관찰** 버튼이 `/usecases.html`로 연결된다.
