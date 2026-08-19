@@ -5,8 +5,24 @@
 표시 규격: 슬라이드 우측 620×750px 영역, `object-fit: cover` (세로가 살짝 긴 3:4 권장)
 현재 상태: 파일이 없으면 슬라이드가 자동으로 아이콘 대체 그래픽을 보여준다. 파일을 넣으면 즉시 사진으로 바뀐다.
 
-생성 도구: **Codex MCP** (사용자 지정, 2026-08-19 기준 미연결 상태 → 연결 후 진행)
+생성 도구: **Codex MCP** (2026-08-19 생성 완료)
 그림체(사용자 확정): **실사 + UI 목업 톤**
+
+## 현재 상태 — 완료
+
+- 원본: `assets/deck/case1~6.png` (1086×1448, 3:4, 장당 약 1.7~2.0MB)
+- 웹용: `assets/deck/case1~6.jpg` (sips JPEG q82로 변환, 전체 10MB → 1.5MB)
+- 슬라이드가 참조하는 것은 **.jpg** 쪽이다. 원본 png는 보존한다(PRD: 기존 산출물 삭제 금지).
+- 재변환이 필요하면:
+  `cd assets/deck && for i in 1 2 3 4 5 6; do sips -s format jpeg -s formatOptions 82 case$i.png --out case$i.jpg; done`
+
+### 이미지 안의 알려진 오탈자 (재생성 시 수정 대상)
+
+- `case5` — 화면에 "**매입** 세금계산서 (초안)". 발표자는 발행하는 쪽이므로 "**매출**"이 맞다.
+- `case4` — 공지 목록에 "20**3**4년 겨울방학 특강 안내" 오타, 날짜도 2024년으로 과거다.
+
+두 건 모두 슬라이드에서는 620px 폭으로 축소 표시되어 눈에 잘 띄지 않지만,
+화면을 크게 띄우는 발표장이라면 재생성을 권한다.
 
 ## 공통 스타일 문장 (6장 모두 동일하게 삽입)
 
@@ -41,7 +57,7 @@ shallow depth of field, shot on 35mm, no text overlays, no watermark, no logos, 
 스마트폰 채팅에 세금계산서 발행 초안 카드가 떠 있고, 손가락이 확인 버튼 위에 머무는 순간.
 `smartphone chat screen showing an AI-generated tax invoice draft card with amount and client fields, a thumb hovering over the confirm button, paper invoices and a calculator softly blurred behind`
 
-### case6.png — 미니PC + NAS = 8인 팀
+### case6.png — 미니PC + NAS = 협업 거점 (에이전트 4대 + 협업 파트너 4명, 고용 0명)
 선반 위 미니PC 한 대와 NAS 한 대, 상태 LED, 옆 모니터에 에이전트 4개의 작업 현황 대시보드.
 `a compact mini PC and a small NAS unit sitting on a wooden shelf with status LEDs glowing mint-cyan, a monitor beside them showing a dashboard of four running AI agent sessions, tidy home-office, morning light`
 
