@@ -20,8 +20,8 @@
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
-    height: 100%;
-    overflow: hidden;
+    min-height: 100%;
+    overflow-x: hidden;
     background: var(--paper);
     font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     color: var(--ink);
@@ -34,8 +34,9 @@
     width: 100%; height: 100%;
     object-fit: cover;
   }
-  #stage video { opacity: 0; transition: opacity .2s linear; }
-  #stage video.live { opacity: 1; }
+  #stage video { opacity: 1; }
+  /* 고정된 영상 위를 실제 문서가 스크롤한다. */
+  #scrollTrack { height: 900vh; pointer-events: none; }
 
   /* ── 상단 브랜드 ──────────────────────────── */
   header {
@@ -126,9 +127,7 @@
 <body>
 
 <div id="stage">
-  <img class="fallback" id="fallbackImg" alt="">
-  <video id="vA" muted playsinline preload="auto"></video>
-  <video id="vB" muted playsinline preload="auto"></video>
+  <video id="scrollVideo" muted playsinline preload="auto" poster="../assets/frames/d1_first.png"></video>
 </div>
 
 <header>
@@ -162,31 +161,28 @@
 
 <nav id="dots"></nav>
 <div id="hint">스크롤하여 여정 시작</div>
+<div id="scrollTrack" aria-hidden="true"></div>
 
 <script>
-/* ────────────────────────────────────────────────
-   자산 체인: D1 C1 D2 C2 D3 C3 D4 C4 D5
-   settled(i) = Di의 마지막 프레임 (장면 i 내부)
-   ↓ 스크롤: Ci → D(i+1) 재생   ↑ 스크롤: rDi → rC(i-1) 재생
-   r*.mp4 = ffmpeg로 뒤집은 역방향 클립
-──────────────────────────────────────────────── */
-const V = '../assets/videos/';
+/*
+   자산 체인: D1 → C1 → D2 → C2 → D3 → C3 → D4 → C4 → D5
+   스크롤 위치를 하나의 마스터 영상 시간축에 매핑한다. 따라서 역방향
+   클립 없이도 위로 스크롤하면 정확히 같은 프레임을 거꾸로 볼 수 있다.
+*/
 const SCENES = [
-  { dive: 'd1.mp4', rdive: 'rd1.mp4', conn: 'c1.mp4', rconn: 'rc1.mp4', label: 'AI Novices' },
-  { dive: 'd2.mp4', rdive: 'rd2.mp4', conn: 'c2.mp4', rconn: 'rc2.mp4', label: 'AI Optimisers' },
-  { dive: 'd3.mp4', rdive: 'rd3.mp4', conn: 'c3.mp4', rconn: 'rc3.mp4', label: 'AI Explorers' },
-  { dive: 'd4.mp4', rdive: 'rd4.mp4', conn: 'c4.mp4', rconn: 'rc4.mp4', label: 'AI Champions' },
-  { dive: 'd5.mp4', rdive: 'rd5.mp4', conn: null,     rconn: null,      label: "Let's Coding" },
+  { label: 'AI Novices' },
+  { label: 'AI Optimisers' },
+  { label: 'AI Explorers' },
+  { label: 'AI Champions' },
+  { label: "Let's Coding" },
 ];
-const SPEED = 1.25;           // 전환 체감 속도
-const vA = document.getElementById('vA');
-const vB = document.getElementById('vB');
+const video = document.getElementById('scrollVideo');
 const hint = document.getElementById('hint');
 const stageLabel = document.getElementById('stageLabel');
-let cur = 0;                  // 현재 장면 index (0~4)
-let busy = false;
-let started = false;
-let front = vA, back = vB;
+let cur = -1;
+let targetTime = 0;
+let renderedTime = 0;
+let rafId = 0;
 
 const dots = document.getElementById('dots');
 SCENES.forEach((s, i) => {
@@ -198,73 +194,54 @@ SCENES.forEach((s, i) => {
 
 function setDots() {
   [...dots.children].forEach((b, i) => b.classList.toggle('on', i === cur));
-  stageLabel.textContent = SCENES[cur].label;
+  stageLabel.textContent = cur >= 0 ? SCENES[cur].label : '';
 }
 function showCopy(i) {
   document.querySelectorAll('.copy').forEach(c => c.classList.remove('show'));
   if (i >= 0) document.getElementById('copy' + (i + 1))?.classList.add('show');
 }
 
-function playClip(src, onDone) {
-  back.src = V + src;
-  back.playbackRate = SPEED;
-  back.onended = null;
-  back.oncanplay = () => {
-    back.oncanplay = null;
-    back.classList.add('live');
-    front.classList.remove('live');
-    [front, back] = [back, front];
-    front.onended = onDone;
-    front.play().catch(() => onDone && onDone());
-  };
-  back.onerror = () => { console.warn('clip missing:', src); onDone && onDone(); };
-  back.load();
-}
-
-function playChain(clips, landing) {
-  busy = true; showCopy(-1);
-  const step = (k) => {
-    if (k >= clips.length) { busy = false; cur = landing; setDots(); showCopy(cur); return; }
-    playClip(clips[k], () => step(k + 1));
-  };
-  step(0);
-}
-
-function next() {
-  if (busy || cur >= SCENES.length - 1) return;
-  playChain([SCENES[cur].conn, SCENES[cur + 1].dive], cur + 1);
-}
-function prev() {
-  if (busy || cur <= 0) return;
-  playChain([SCENES[cur].rdive, SCENES[cur - 1].rconn], cur - 1);
-}
 function goTo(i) {
-  if (busy || i === cur) return;
-  if (i > cur) next(); else prev();   // 순차 이동 (컷 없는 흐름 유지)
+  const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+  /* 각 장면의 도착점: 9개 클립 중 D1, D2, …, D5의 마지막 프레임 */
+  const progress = (i * 2 + 1) / 9;
+  window.scrollTo({ top: maxScroll * progress, behavior: 'smooth' });
 }
 
-function start() {
-  started = true; hint.classList.add('hide');
-  playChain([SCENES[0].dive], 0);
+function updateScene(progress) {
+  /* 장면 도착점(1/9, 3/9, …)에 가장 가까운 카피를 표시 */
+  const next = Math.min(SCENES.length - 1, Math.max(0, Math.round((progress * 9 - 1) / 2)));
+  if (next !== cur) {
+    cur = next;
+    setDots();
+    showCopy(cur);
+  }
 }
 
-let wheelLock = 0;
-window.addEventListener('wheel', (e) => {
-  const now = Date.now();
-  if (now - wheelLock < 400) return;
-  wheelLock = now;
-  if (!started) return start();
-  if (e.deltaY > 12) next();
-  else if (e.deltaY < -12) prev();
-}, { passive: true });
+function renderVideo() {
+  /* 짧은 보간으로 트랙패드/휠 입력의 미세한 흔들림을 부드럽게 흡수 */
+  renderedTime += (targetTime - renderedTime) * 0.22;
+  if (Math.abs(targetTime - renderedTime) < 0.005) renderedTime = targetTime;
+  if (Math.abs(video.currentTime - renderedTime) > 0.012) video.currentTime = renderedTime;
+  if (renderedTime !== targetTime) rafId = requestAnimationFrame(renderVideo);
+  else rafId = 0;
+}
 
-window.addEventListener('keydown', (e) => {
-  if (['ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); started ? next() : start(); }
-  if (['ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); prev(); }
-});
+function syncToScroll() {
+  if (!Number.isFinite(video.duration)) return;
+  const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+  const progress = maxScroll > 0 ? Math.min(1, Math.max(0, window.scrollY / maxScroll)) : 0;
+  targetTime = progress * video.duration;
+  updateScene(progress);
+  hint.classList.toggle('hide', progress > 0.015);
+  if (!rafId) rafId = requestAnimationFrame(renderVideo);
+}
 
-/* 초기 화면: 장면 1 스틸 → 첫 스크롤에 다이브 시작 */
-document.getElementById('fallbackImg').src = '../assets/frames/d1_first.png';
+video.addEventListener('loadedmetadata', syncToScroll);
+window.addEventListener('scroll', syncToScroll, { passive: true });
+window.addEventListener('resize', syncToScroll);
+
+video.src = '../assets/videos/scroll-master.mp4';
 setDots(); showCopy(-1);
 </script>
 </body>
